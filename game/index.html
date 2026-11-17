@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmarina Heat — Open-World Crime</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e14;
+    font-family: "Arial Narrow", Arial, Helvetica, sans-serif; color: #fff; }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; width: 100%; height: 100%; }
+  .hidden { display: none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    text-shadow: 0 2px 4px rgba(0,0,0,.8); user-select: none; }
+  #hud .panel { background: rgba(8,12,20,.55); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 8px; padding: 8px 12px; backdrop-filter: blur(2px); }
+  #topleft { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column; gap: 8px; }
+  #healthbar { width: 220px; height: 16px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.35);
+    border-radius: 8px; overflow: hidden; }
+  #healthfill { height: 100%; width: 100%; background: linear-gradient(90deg,#ff5a3c,#ffb020); transition: width .2s; }
+  #cashline { font-size: 26px; font-weight: 900; letter-spacing: 1px; color: #7dff8a; }
+  #cashline small { color: #cfe8d2; font-size: 14px; font-weight: 700; }
+  #ammo-line { font-size: 16px; font-weight: 700; color: #ffd76a; }
+  #topright { position: absolute; top: 14px; right: 14px; text-align: right; }
+  #stars { font-size: 34px; letter-spacing: 4px; color: #ffd21f; line-height: 1; }
+  #stars .off { color: rgba(255,255,255,.25); }
+  #wanted-label { font-size: 13px; font-weight: 700; letter-spacing: 3px; color: #ffb3a6; margin-top: 4px; }
+  #objective { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    text-align: center; max-width: 560px; }
+  #objective .obj-title { font-size: 15px; font-weight: 900; letter-spacing: 2px; color: #ffd21f; }
+  #objective .obj-text { font-size: 19px; font-weight: 700; margin-top: 2px; }
+  #objective .obj-dist { font-size: 14px; color: #9fd8ff; font-weight: 700; }
+  #minimap-wrap { position: absolute; left: 14px; bottom: 14px; border: 2px solid rgba(255,255,255,.35);
+    border-radius: 50%; overflow: hidden; box-shadow: 0 4px 18px rgba(0,0,0,.6); background: #0a1420; }
+  #minimap { display: block; border-radius: 50%; }
+  #speedo { position: absolute; right: 16px; bottom: 16px; text-align: right; }
+  #speedo .num { font-size: 52px; font-weight: 900; line-height: .9; color: #fff; }
+  #speedo .unit { font-size: 14px; font-weight: 700; letter-spacing: 3px; color: #ffd21f; }
+  #speedo .carname { font-size: 15px; font-weight: 700; color: #cfe3ff; }
+  #prompt { position: absolute; left: 50%; bottom: 21%; transform: translateX(-50%);
+    font-size: 20px; font-weight: 900; letter-spacing: 1px; background: rgba(8,12,20,.65);
+    border: 1px solid rgba(255,255,255,.25); border-radius: 8px; padding: 8px 16px; }
+  #prompt b { color: #ffd21f; }
+  #dialogue { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%);
+    width: min(680px, 86vw); background: rgba(8,12,20,.78); border: 1px solid rgba(255,210,31,.5);
+    border-left: 6px solid #ffd21f; border-radius: 8px; padding: 12px 16px; }
+  #dialogue .who { font-size: 14px; font-weight: 900; letter-spacing: 2px; color: #ffd21f; }
+  #dialogue .text { font-size: 19px; line-height: 1.35; margin-top: 3px; }
+  #dialogue .hint { font-size: 12px; color: #9fb4c8; margin-top: 6px; letter-spacing: 1px; }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px;
+    transform: translate(-50%,-50%); }
+  #crosshair:before, #crosshair:after { content: ""; position: absolute; background: #fff;
+    box-shadow: 0 0 4px #000; }
+  #crosshair:before { left: 10px; top: 0; width: 2px; height: 22px; }
+  #crosshair:after { top: 10px; left: 0; height: 2px; width: 22px; }
+  #toast { position: absolute; left: 50%; top: 22%; transform: translateX(-50%);
+    font-size: 30px; font-weight: 900; letter-spacing: 2px; color: #ffd21f;
+    text-shadow: 0 3px 10px rgba(0,0,0,.9); text-align: center; }
+  #toast small { display: block; font-size: 17px; color: #fff; letter-spacing: 1px; margin-top: 4px; }
+  #controls-hint { position: absolute; right: 16px; bottom: 150px; font-size: 13px; line-height: 1.7;
+    color: rgba(255,255,255,.75); text-align: right; font-weight: 700; }
+  #controls-hint b { color: #ffd21f; }
+
+  /* ---------- Overlays / menus ---------- */
+  .overlay { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center;
+    justify-content: center; background: linear-gradient(180deg, rgba(6,10,18,.25) 0%, rgba(6,10,18,.82) 78%);
+    pointer-events: auto; }
+  .menu-box { text-align: center; max-width: 720px; padding: 24px; }
+  .game-title { font-size: 84px; font-weight: 900; letter-spacing: 2px; line-height: .9;
+    background: linear-gradient(180deg,#fff 20%,#ffd21f 55%,#ff7a1a 90%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 0 rgba(0,0,0,.55)) drop-shadow(0 10px 24px rgba(0,0,0,.7)); }
+  .game-sub { font-size: 20px; letter-spacing: 6px; font-weight: 700; color: #ffe9a8; margin-top: 8px; }
+  .game-tag { font-size: 16px; color: #d7e6f5; margin-top: 14px; line-height: 1.5; }
+  .btn { display: inline-block; pointer-events: auto; cursor: pointer; border: 2px solid #ffd21f;
+    background: rgba(20,16,4,.75); color: #ffd21f; font-size: 20px; font-weight: 900;
+    letter-spacing: 2px; padding: 12px 34px; margin: 6px; border-radius: 8px;
+    font-family: inherit; text-transform: uppercase; }
+  .btn:hover { background: #ffd21f; color: #141004; }
+  .btn.primary { background: #ffd21f; color: #141004; }
+  .btn.primary:hover { background: #ffe066; }
+  .btn:disabled { opacity: .35; cursor: default; }
+  .btn-row { margin-top: 26px; }
+  .howto { text-align: left; margin: 22px auto 0; max-width: 560px; background: rgba(8,12,20,.8);
+    border: 1px solid rgba(255,255,255,.2); border-radius: 10px; padding: 16px 20px;
+    font-size: 15px; line-height: 1.9; color: #e8f1fa; }
+  .howto b { color: #ffd21f; }
+  .big-word { font-size: 92px; font-weight: 900; letter-spacing: 6px; }
+  .wasted { color: #ff3b30; text-shadow: 0 0 30px rgba(255,59,48,.6), 0 4px 0 #000; }
+  .menu-note { margin-top: 18px; font-size: 13px; color: #9fb4c8; letter-spacing: 1px; }
+  #err { position: fixed; left: 0; bottom: 0; z-index: 99; color: #f66; font: 11px monospace;
+    white-space: pre-wrap; max-width: 60vw; pointer-events: none; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.min.js" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud" class="hidden">
+  <div id="topleft">
+    <div id="healthbar"><div id="healthfill"></div></div>
+    <div id="cashline">$0 <small>CASH</small></div>
+    <div id="ammo-line"></div>
+  </div>
+  <div id="topright">
+    <div id="stars"></div>
+    <div id="wanted-label"></div>
+  </div>
+  <div id="objective">
+    <div class="obj-title" id="obj-title"></div>
+    <div class="obj-text" id="obj-text"></div>
+    <div class="obj-dist" id="obj-dist"></div>
+  </div>
+  <div id="minimap-wrap"><canvas id="minimap" width="220" height="220"></canvas></div>
+  <div id="speedo" class="hidden">
+    <div class="carname" id="carname"></div>
+    <div class="num" id="speednum">0</div>
+    <div class="unit">KM/H</div>
+  </div>
+  <div id="prompt" class="hidden"></div>
+  <div id="dialogue" class="hidden">
+    <div class="who" id="dlg-who"></div>
+    <div class="text" id="dlg-text"></div>
+    <div class="hint">CLICK / E TO CONTINUE</div>
+  </div>
+  <div id="crosshair" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+  <div id="controls-hint"><b>WASD</b> move / drive &nbsp; <b>MOUSE</b> look<br><b>E</b> enter / exit car &nbsp; <b>SPACE</b> brake / jump<br><b>CLICK</b> punch / shoot &nbsp; <b>1 / 2</b> fists / pistol<br><b>SHIFT</b> sprint &nbsp; <b>ESC</b> pause</div>
+</div>
+
+<div id="menu" class="overlay">
+  <div class="menu-box">
+    <div class="game-title">SOLMARINA<br>HEAT</div>
+    <div class="game-sub">AN OPEN-WORLD CRIME STORY</div>
+    <div class="game-tag">Sun, sea and bad decisions. Steal cars, outrun the Solmarina PD,
+      and run jobs for Vera Kline — from pier rat to king of the marina.</div>
+    <div class="btn-row">
+      <button class="btn primary" id="btn-new">New Game</button>
+      <button class="btn" id="btn-continue">Continue</button>
+      <button class="btn" id="btn-how">How to Play</button>
+    </div>
+    <div id="how-panel" class="howto hidden">
+      <b>WASD</b> — walk / drive &nbsp; <b>Mouse</b> — look around (click to lock)<br>
+      <b>E</b> — steal / enter a car, exit a car &nbsp; <b>SPACE</b> — handbrake / jump<br>
+      <b>Left click</b> — punch, or shoot with the pistol &nbsp; <b>1 / 2</b> — fists / pistol<br>
+      <b>SHIFT</b> — sprint &nbsp; <b>ESC</b> — pause &amp; save<br>
+      Crimes raise your wanted stars. Lay low and the heat cools off.
+      Follow the yellow marker to run Vera's jobs and earn cash.
+    </div>
+    <div class="menu-note">SOLMARINA HEAT is an original game. All names, characters, places and
+      music are invented. No network needed — runs fully offline.</div>
+  </div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <div class="menu-box">
+    <div class="game-title" style="font-size:56px">PAUSED</div>
+    <div class="btn-row">
+      <button class="btn primary" id="btn-resume">Resume</button>
+      <button class="btn" id="btn-save">Save Game</button>
+      <button class="btn" id="btn-quit">Quit to Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <div class="menu-box">
+    <div class="big-word wasted">WASTED</div>
+    <div class="game-tag" id="gameover-text">The Solmarina PD scraped you off the boulevard.</div>
+    <div class="btn-row">
+      <button class="btn primary" id="btn-respawn">Respawn — $200 hospital bill</button>
+      <button class="btn" id="btn-menu2">Main Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="err"></div>
+<script>
+  window.__gameErrors = [];
+  window.addEventListener('error', function (e) {
+    window.__gameErrors.push(String(e.message || e.error));
+    var el = document.getElementById('err');
+    if (el) el.textContent = window.__gameErrors.slice(-4).join('\n');
+  });
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
