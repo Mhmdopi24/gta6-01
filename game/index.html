@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmar Bay — Open World Crime Game</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0b1622;font-family:Verdana,Arial,sans-serif;color:#fff}
+  #game{position:fixed;inset:0}
+  canvas.webgl{display:block}
+  .hidden{display:none !important}
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+  #topbar{position:absolute;top:12px;right:14px;text-align:right;text-shadow:0 2px 4px #000}
+  #stars{font-size:26px;letter-spacing:3px;color:#ffd23f}
+  #stars .off{color:rgba(255,255,255,.25)}
+  #cash{font-size:22px;font-weight:bold;color:#7dff9a}
+  #clock{font-size:15px;color:#eaf2ff}
+  #healthbar{position:absolute;top:14px;left:14px;width:220px}
+  #healthbar .label{font-size:13px;margin-bottom:4px;text-shadow:0 1px 3px #000}
+  #healthfill{height:14px;background:#37d67a;border:2px solid #0008;border-radius:7px;width:100%}
+  #objective{position:absolute;top:64px;left:14px;max-width:340px;background:rgba(0,0,0,.55);border-left:4px solid #ffd23f;padding:8px 12px;border-radius:4px;font-size:14px;line-height:1.45}
+  #objective b{color:#ffd23f}
+  #speedo{position:absolute;bottom:16px;right:16px;font-size:30px;font-weight:bold;text-shadow:0 2px 6px #000}
+  #speedo small{font-size:14px}
+  #msg{position:absolute;bottom:110px;left:50%;transform:translateX(-50%);font-size:20px;font-weight:bold;text-shadow:0 2px 6px #000;text-align:center}
+  #minimap{position:absolute;bottom:14px;left:14px;border:2px solid #ffffff88;border-radius:6px;background:#12203a}
+  #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:22px;color:#fff;text-shadow:0 0 4px #000}
+  #hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:13px;background:rgba(0,0,0,.5);padding:5px 10px;border-radius:4px}
+  .screen{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#0b2a4a 0%,#123a5e 45%,#c96a1e 100%)}
+  .panel{max-width:640px;margin:16px;padding:28px 34px;background:rgba(0,0,0,.62);border-radius:12px;text-align:center}
+  .panel h1{margin:0 0 4px;font-size:44px;letter-spacing:2px;color:#ffd23f}
+  .panel h2{margin:0 0 14px;font-size:16px;font-weight:normal;color:#9fd8ff}
+  .panel p{font-size:15px;line-height:1.55;text-align:left}
+  .panel .controls{font-size:14px;line-height:1.8;text-align:left;background:#ffffff12;padding:10px 14px;border-radius:8px}
+  button{pointer-events:auto;cursor:pointer;font-size:20px;font-weight:bold;padding:12px 34px;margin-top:16px;border:0;border-radius:8px;background:#ffd23f;color:#20242a}
+  button:hover{background:#ffe066}
+  #wastedTitle{color:#ff5a5a}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="hud" class="hidden">
+  <div id="healthbar"><div class="label">❤ HEALTH <span id="healthnum">100</span></div><div id="healthfill"></div></div>
+  <div id="topbar">
+    <div id="stars"></div>
+    <div id="cash">$0</div>
+    <div id="clock">Day 1 · 09:00</div>
+  </div>
+  <div id="objective"><b id="objTitle">Free Roam</b><br><span id="objText">Explore Solmar Bay. Steal a car with E, cause trouble, or start a mission.</span></div>
+  <canvas id="minimap" width="190" height="190"></canvas>
+  <div id="speedo" class="hidden">0 <small>mph</small></div>
+  <div id="crosshair" class="hidden">+</div>
+  <div id="msg"></div>
+  <div id="hint">WASD move · Mouse look · SHIFT run · SPACE jump · E enter/exit car · F punch · Click shoot · P pause · M mute</div>
+</div>
+
+<div id="startScreen" class="screen">
+  <div class="panel">
+    <h1>SOLMAR BAY</h1>
+    <h2>An original open-world crime story — sun, sea, and bad decisions</h2>
+    <p>You are <b>Danny Reyes</b>, a wheelman fresh out of the docks of Solmar Bay, a sun-soaked
+    coastal city of palm-lined boulevards, tower blocks and one very patient loan shark.
+    Your crew boss <b>Marla Quinn</b> has three jobs for you — pull them off, stay ahead of the
+    Solmar Bay Police, and buy your way out of debt. Steal cars, outrun the law, and don't
+    get caught on foot.</p>
+    <div class="controls">
+      <b>CONTROLS</b><br>
+      WASD — move / drive &nbsp;·&nbsp; Mouse — look (click to lock) &nbsp;·&nbsp; SHIFT — sprint<br>
+      SPACE — jump &nbsp;·&nbsp; E — enter / exit car &nbsp;·&nbsp; F — punch &nbsp;·&nbsp; Click — shoot<br>
+      P — pause &nbsp;·&nbsp; M — mute &nbsp;·&nbsp; Progress saves automatically
+    </div>
+    <button id="startBtn">▶ START ENGINE</button>
+    <p style="text-align:center;font-size:12px;color:#bcd">A fully original game. No Rockstar / GTA content.</p>
+  </div>
+</div>
+
+<div id="pauseScreen" class="screen hidden">
+  <div class="panel">
+    <h1>PAUSED</h1>
+    <p style="text-align:center">Solmar Bay waits for no one. Except now.</p>
+    <button id="resumeBtn">RESUME</button><br>
+    <button id="restartBtn" style="background:#8ecbff">RESTART GAME</button>
+  </div>
+</div>
+
+<div id="endScreen" class="screen hidden">
+  <div class="panel">
+    <h1 id="wastedTitle">BUSTED</h1>
+    <p id="endText" style="text-align:center"></p>
+    <button id="respawnBtn">GET BACK OUT THERE</button>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
