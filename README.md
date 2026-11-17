@@ -47,3 +47,5 @@ synthesized with WebAudio.
 three.js (vendored minified build under `game/vendor/`), plain ES modules,
 no build step. Source is split by job: `city.js`, `vehicles.js`,
 `people.js`, `missions.js`, `hud.js`, `audio.js`, `shots.js`, `main.js`.
+
+The 3D rendering runs on three.js r152, vendored locally at `game/vendor/three.min.js`, so the game has no CDN dependency and works fully offline.
